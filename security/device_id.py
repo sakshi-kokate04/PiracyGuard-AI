@@ -1,69 +1,71 @@
-# PiracyGuard AI - Device Identification Module
-
 import platform
 import uuid
 import hashlib
+import socket
+import os
+import json
+from datetime import datetime
 
-# -------------------------------
-# HARDWARE ID (HWID)
-# -------------------------------
-def generate_hardware_id():
+
+def get_hardware_id():
     """
-    Unique ID for physical machine
+    Hardware-based values (stable)
     """
-    system = platform.system()
-    machine = platform.machine()
-    processor = platform.processor()
-    mac_address = uuid.getnode()
+    system_info = {
+        "machine": platform.machine(),
+        "processor": platform.processor(),
+        "node": platform.node(),
+        "mac": hex(uuid.getnode()),
+    }
+    raw = json.dumps(system_info, sort_keys=True)
+    return hashlib.sha256(raw.encode()).hexdigest()
 
-    raw_data = f"{system}-{machine}-{processor}-{mac_address}"
-    hardware_id = hashlib.sha256(raw_data.encode()).hexdigest()
 
-    return hardware_id
-
-
-# -------------------------------
-# SOFTWARE KEY
-# -------------------------------
-def generate_software_key():
+def get_software_id():
     """
-    Unique software installation key
+    Software / OS-based values
     """
-    os_name = platform.system()
-    node_name = platform.node()
-    processor = platform.processor()
-    mac_address = uuid.getnode()
-
-    raw_data = f"{os_name}-{node_name}-{processor}-{mac_address}"
-    hashed = hashlib.sha256(raw_data.encode()).hexdigest()
-
-    software_key = f"SOFT-{hashed[:4]}-{hashed[4:8]}-{hashed[8:12]}"
-    return software_key
+    software_info = {
+        "os": platform.system(),
+        "os_version": platform.version(),
+        "python_version": platform.python_version(),
+        "hostname": socket.gethostname(),
+    }
+    raw = json.dumps(software_info, sort_keys=True)
+    return hashlib.sha256(raw.encode()).hexdigest()
 
 
-# -------------------------------
-# PLUGIN ID
-# -------------------------------
-def generate_plugin_id(software_key, hardware_id):
+def get_plugin_id():
     """
-    Plugin bound to software + hardware
+    Project / app specific ID (simulates plugin identity)
     """
-    raw_data = f"{software_key}-{hardware_id}"
-    plugin_hash = hashlib.sha256(raw_data.encode()).hexdigest()
+    plugin_info = {
+        "project": "PiracyGuardAI",
+        "install_path": os.getcwd(),
+        "created": datetime.now().strftime("%Y-%m"),
+    }
+    raw = json.dumps(plugin_info, sort_keys=True)
+    return hashlib.sha256(raw.encode()).hexdigest()
 
-    plugin_id = f"PLUGIN-{plugin_hash[:6]}-{plugin_hash[6:12]}"
-    return plugin_id
+
+def generate_device_fingerprint():
+    hardware_id = get_hardware_id()
+    software_id = get_software_id()
+    plugin_id = get_plugin_id()
+
+    combined = hardware_id + software_id + plugin_id
+    device_fingerprint = hashlib.sha512(combined.encode()).hexdigest()
+
+    return {
+        "hardware_id": hardware_id,
+        "software_id": software_id,
+        "plugin_id": plugin_id,
+        "device_fingerprint": device_fingerprint
+    }
 
 
-# -------------------------------
-# TEST RUN
-# -------------------------------
 if __name__ == "__main__":
-    software_key = generate_software_key()
-    hardware_id = generate_hardware_id()
-    plugin_id = generate_plugin_id(software_key, hardware_id)
-
-    print("\n🔐 PIRACYGUARD AI – DEVICE KEYS\n")
-    print("Software Key :", software_key)
-    print("Hardware ID  :", hardware_id[:24], "...")
-    print("Plugin ID    :", plugin_id)
+    fingerprint = generate_device_fingerprint()
+    print("\n🔐 DEVICE SCAN RESULT 🔐\n")
+    for key, value in fingerprint.items():
+        print(f"{key.upper()}:\n{value}\n")
